@@ -2,15 +2,18 @@
 
 ## What services are provided?
 
-This stack deploys a complete WordPress website accessible via HTTPS. It consists of three containers:
+This stack deploys a complete web infrastructure with WordPress, caching, database management, and more. It consists of 8 containers:
 
-| Container | Role | Port |
-|---|---|---|
-| **nginx** | Web server / reverse proxy — only public entrypoint | 443 (HTTPS) |
-| **wordpress** | PHP application server (php-fpm) | 9000 (internal only) |
-| **mariadb** | MySQL-compatible database | 3306 (internal only) |
-
-Only port **443** is accessible from outside. HTTP (port 80) is not exposed.
+| Container | Role | Port | URL |
+|---|---|---|---|
+| **nginx** | Web server / reverse proxy (HTTPS) | 443 | `https://zakburak.42.fr` |
+| **wordpress** | PHP application server (php-fpm) | 9000 (internal) | - |
+| **mariadb** | MySQL-compatible database | 3306 (internal) | - |
+| **redis** | Object Cache for WordPress | 6379 (internal) | - |
+| **ftp** | FTP Server (vsftpd) | 21 | `ftp://zakburak.42.fr` |
+| **website** | Static Portfolio Website | 80 | `http://zakburak.42.fr` |
+| **adminer** | Database management UI | 8080 | `http://zakburak.42.fr:8080` |
+| **portainer** | Docker management UI | 9000 | `http://zakburak.42.fr:9000` |
 
 ---
 
@@ -24,17 +27,7 @@ make
 # or equivalently:
 make up
 ```
-This will build the Docker images (first time only) and start all three containers in the background.
-
-### Stop the project (containers remain)
-```bash
-make stop
-```
-
-### Restart stopped containers (without rebuilding)
-```bash
-make start
-```
+This will build the Docker images (first time only) and start all containers in the background.
 
 ### Stop and remove containers
 ```bash
@@ -50,7 +43,7 @@ make fclean
 
 ---
 
-## Accessing the website
+## Accessing the services
 
 1. Make sure `zakburak.42.fr` resolves to `127.0.0.1` in your `/etc/hosts`:
    ```
@@ -58,31 +51,25 @@ make fclean
    ```
 
 2. Open your browser and navigate to:
-   - **Website**: `https://zakburak.42.fr`
-   - **Admin panel**: `https://zakburak.42.fr/wp-admin`
+   - **WordPress**: `https://zakburak.42.fr`
+   - **Static Website**: `http://zakburak.42.fr`
+   - **Adminer**: `http://zakburak.42.fr:8080`
+   - **Portainer**: `http://zakburak.42.fr:9000`
+   - **FTP**: `ftp://ftpuser@zakburak.42.fr`
 
-> ℹ️ The SSL certificate is self-signed. Your browser will warn you — click "Advanced" → "Proceed" to continue.
+> ℹ️ The SSL certificate on HTTPS is self-signed. Your browser will warn you — click "Advanced" → "Proceed" to continue.
 
 ---
 
 ## Credentials
 
-All credentials are stored in the `secrets/` directory at the root of the project:
+All passwords are provided via Docker Secrets in the `secrets/` directory:
 
 | File | Content |
 |---|---|
 | `secrets/db_root_password.txt` | MariaDB root password |
 | `secrets/db_password.txt` | MariaDB WordPress user password |
-| `secrets/credentials.txt` | WordPress admin password |
-
-WordPress user accounts configured via `.env`:
-
-| Variable | Value |
-|---|---|
-| `WP_ADMIN_USER` | WordPress administrator login |
-| `WP_ADMIN_EMAIL` | Administrator email |
-| `WP_USER` | Second (editor) account login |
-| `WP_USER_EMAIL` | Editor email |
+| `secrets/ftp_password.txt` | FTP user (`ftpuser`) password |
 
 > ⚠️ The `secrets/` directory is listed in `.gitignore` and must **never** be committed to Git.
 
@@ -96,19 +83,6 @@ make status
 
 # Follow live logs
 make logs
-
-# Check individual container logs
-docker logs nginx
-docker logs wordpress
-docker logs mariadb
-```
-
-Expected output of `make status`:
-```
-NAME        STATUS     PORTS
-mariadb     running    3306/tcp
-wordpress   running    9000/tcp
-nginx       running    0.0.0.0:443->443/tcp
 ```
 
 ### Quick connectivity test
@@ -116,4 +90,8 @@ nginx       running    0.0.0.0:443->443/tcp
 # Test HTTPS (from the host, -k ignores the self-signed cert warning)
 curl -k https://zakburak.42.fr | head -20
 # Expected: WordPress HTML page
+
+# Test FTP
+curl 'ftp://ftpuser:FtpPass42!@zakburak.42.fr/'
+# Expected: Directory listing of WordPress files
 ```
