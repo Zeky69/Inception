@@ -64,7 +64,7 @@ EOF
     chmod +x /usr/local/bin/wp
 
     echo "Waiting for Database to be ready..."
-    until wp db check --allow-root --path=$WP_PATH > /dev/null 2>&1; do
+    until wp db check --allow-root --path=$WP_PATH; do
         sleep 2
     done
 

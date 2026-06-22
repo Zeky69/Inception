@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
   wget \
   curl \
   unzip \
+  php8.2-cli \
+  mariadb-client \
   && ln -s /usr/sbin/php-fpm8.2 /usr/local/bin/php-fpm \
   && rm -rf /var/lib/apt/lists/*
 
