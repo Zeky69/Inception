@@ -1,38 +1,47 @@
-LOGIN		= zakburak
-DATA_DIR	= /home/$(LOGIN)/data
+COMPOSE_FILE = srcs/docker-compose.yml
+DATA_DIR = /home/zakburak/data
 
-all: up
+.PHONY: all build up down clean fclean re logs status
 
-up: data_dirs
-	docker compose -f srcs/docker-compose.yml up -d --build
+all: build up
 
-down:
-	docker compose -f srcs/docker-compose.yml down
+# Create data directories and build images
+build: $(DATA_DIR)/mariadb $(DATA_DIR)/wordpress
+	docker compose -f $(COMPOSE_FILE) build
 
-stop:
-	docker compose -f srcs/docker-compose.yml stop
-
-start:
-	docker compose -f srcs/docker-compose.yml start
-
-logs:
-	docker compose -f srcs/docker-compose.yml logs -f
-
-status:
-	docker compose -f srcs/docker-compose.yml ps
-
-data_dirs:
-	mkdir -p $(DATA_DIR)/wordpress
+# Create data directories if they don't exist
+$(DATA_DIR)/mariadb:
 	mkdir -p $(DATA_DIR)/mariadb
 
-clean: down
+$(DATA_DIR)/wordpress:
+	mkdir -p $(DATA_DIR)/wordpress
+
+# Start services
+up:
+	docker compose -f $(COMPOSE_FILE) up -d
+
+# Stop services
+down:
+	docker compose -f $(COMPOSE_FILE) down
+
+# View logs
+logs:
+	docker compose -f $(COMPOSE_FILE) logs -f
+
+# Show status
+status:
+	docker compose -f $(COMPOSE_FILE) ps
+
+# Clean containers and images
+clean:
+	docker compose -f $(COMPOSE_FILE) down
 	docker system prune -af
 
-fclean: down
-	docker system prune -af --volumes
+# Full clean including volumes and data
+fclean: clean
+	docker volume prune -f
 	sudo rm -rf $(DATA_DIR)/wordpress/*
 	sudo rm -rf $(DATA_DIR)/mariadb/*
 
+# Rebuild everything
 re: fclean all
-
-.PHONY: all up down stop start logs status data_dirs clean fclean re

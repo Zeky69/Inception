@@ -1,51 +1,56 @@
 #!/bin/bash
+
 set -e
 
-DB_ROOT_PASS=$(cat /run/secrets/db_root_password)
-DB_PASS=$(cat /run/secrets/db_password)
-
-# S'assurer que le repertoire du socket existe
-mkdir -p /run/mysqld
-chown -R mysql:mysql /run/mysqld
-
-# --- Initialisation uniquement au premier demarrage ---
-if [ ! -d "/var/lib/mysql/mysql" ]; then
-	echo "[MariaDB] Premier demarrage : initialisation de la base..."
-
-	mysql_install_db --user=mysql --datadir=/var/lib/mysql > /dev/null
-
-	# Demarrer MariaDB temporairement sans reseau pour l'init
-	mysqld_safe --skip-networking --socket=/run/mysqld/mysqld.sock &
-	MYSQL_PID=$!
-
-	# Attendre que MariaDB soit pret via le socket local
-	echo "[MariaDB] Attente du demarrage de mysqld..."
-	for i in $(seq 1 30); do
-		if mysqladmin ping --socket=/run/mysqld/mysqld.sock --silent 2>/dev/null; then
-			echo "[MariaDB] mysqld pret (tentative $i)."
-			break
-		fi
-		sleep 1
-	done
-
-	# Creer la base, l'utilisateur et definir le mot de passe root
-	mysql --socket=/run/mysqld/mysqld.sock -u root <<-EOF
-		CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\`;
-		CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${DB_PASS}';
-		GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%';
-		ALTER USER 'root'@'localhost' IDENTIFIED BY '${DB_ROOT_PASS}';
-		FLUSH PRIVILEGES;
-EOF
-
-	# Arreter le mysqld temporaire
-	mysqladmin --socket=/run/mysqld/mysqld.sock -u root -p"${DB_ROOT_PASS}" shutdown
-	wait $MYSQL_PID
-
-	echo "[MariaDB] Initialisation terminee."
-else
-	echo "[MariaDB] Base deja initialisee, demarrage direct."
+# Read passwords from Docker secrets files
+if [ -n "$MYSQL_ROOT_PASSWORD_FILE" ] && [ -f "$MYSQL_ROOT_PASSWORD_FILE" ]; then
+    MYSQL_ROOT_PASSWORD=$(cat "$MYSQL_ROOT_PASSWORD_FILE")
+fi
+if [ -n "$MYSQL_PASSWORD_FILE" ] && [ -f "$MYSQL_PASSWORD_FILE" ]; then
+    MYSQL_PASSWORD=$(cat "$MYSQL_PASSWORD_FILE")
 fi
 
-# --- Lancer MariaDB en foreground (PID 1) ---
-echo "[MariaDB] Demarrage de mysqld..."
-exec mysqld --user=mysql
+echo "Starting MariaDB initialization..."
+
+# Initialize MySQL data directory if it doesn't exist
+if [ ! -d "/var/lib/mysql/mysql" ]; then
+    echo "Initializing data directory..."
+    mysql_install_db --user=mysql --datadir=/var/lib/mysql > /dev/null
+
+    # Start the server (no networking for setup)
+    echo "Starting temporary MariaDB server for setup..."
+    mysqld --skip-networking --socket=/run/mysqld/mysqld.sock --user=mysql &
+    pid="$!"
+
+    # Wait for MariaDB to be ready
+    echo "Waiting for MariaDB to be ready..."
+    until mysqladmin --socket=/run/mysqld/mysqld.sock ping >/dev/null 2>&1; do
+        sleep 1
+    done
+    echo "MariaDB is ready!"
+
+    # Run setup SQL: create database and users
+    echo "Running setup SQL..."
+    mysql --socket=/run/mysqld/mysqld.sock -u root << EOF
+ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
+CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE};
+CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
+GRANT ALL PRIVILEGES ON ${MYSQL_DATABASE}.* TO '${MYSQL_USER}'@'%';
+FLUSH PRIVILEGES;
+EOF
+
+    # Shut down temporary server
+    echo "Shutting down temporary MariaDB..."
+    mysqladmin --socket=/run/mysqld/mysqld.sock -u root -p"${MYSQL_ROOT_PASSWORD}" shutdown
+
+    # Wait for shutdown
+    wait "$pid" || true
+
+    echo "Initialization complete."
+else
+    echo "Data directory already exists. Skipping initialization."
+fi
+
+# Start MariaDB normally (with networking)
+echo "Starting MariaDB..."
+exec mysqld --user=mysql --datadir=/var/lib/mysql --socket=/run/mysqld/mysqld.sock

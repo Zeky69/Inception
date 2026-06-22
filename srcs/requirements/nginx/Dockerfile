@@ -1,17 +1,25 @@
-FROM debian:bookworm
+FROM debian:bullseye
 
+# Install nginx and openssl
 RUN apt-get update && apt-get install -y \
-	nginx \
-	openssl \
-	&& rm -rf /var/lib/apt/lists/*
+    nginx \
+    openssl \
+    gettext-base \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-	-keyout /etc/ssl/private/zakburak.42.fr.key \
-	-out /etc/ssl/certs/zakburak.42.fr.crt \
-	-subj "/C=FR/ST=IDF/L=Paris/O=42/OU=42/CN=zakburak.42.fr"
+# Ensure nginx runs as www-data with correct UID
+RUN usermod -u 33 www-data && groupmod -g 33 www-data
 
-COPY conf/nginx.conf /etc/nginx/sites-available/default
+# Create SSL directory
+RUN mkdir -p /etc/nginx/ssl
+
+# Copy configuration files
+COPY conf/nginx.conf /etc/nginx/nginx.conf.template
+COPY tools/generate_ssl.sh /usr/local/bin/
+
+# Set permissions
+RUN chmod +x /usr/local/bin/generate_ssl.sh
 
 EXPOSE 443
 
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/usr/local/bin/generate_ssl.sh"]

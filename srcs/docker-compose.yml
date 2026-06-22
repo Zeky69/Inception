@@ -1,56 +1,64 @@
 services:
-
   mariadb:
-    build: ./requirements/mariadb
-    image: mariadb
+    build:
+      context: requirements/mariadb
+    image: mariadb:inception
     container_name: mariadb
-    restart: on-failure
-    env_file:
-      - .env
+    networks:
+      - inception-network
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD_FILE: /run/secrets/db_password
     secrets:
       - db_root_password
       - db_password
-    volumes:
-      - mariadb_data:/var/lib/mysql
-    networks:
-      - inception
-    expose:
-      - "3306"
+    restart: always
 
   wordpress:
-    build: ./requirements/wordpress
-    image: wordpress
+    build:
+      context: requirements/wordpress
+    image: wordpress:inception
     container_name: wordpress
-    restart: on-failure
     depends_on:
       - mariadb
-    env_file:
-      - .env
+    networks:
+      - inception-network
+    volumes:
+      - wordpress_data:/var/www/html
+    environment:
+      WORDPRESS_DB_HOST: mariadb
+      WORDPRESS_DB_NAME: ${MYSQL_DATABASE}
+      WORDPRESS_DB_USER: ${MYSQL_USER}
+      WORDPRESS_DB_PASSWORD_FILE: /run/secrets/db_password
+      WORDPRESS_TABLE_PREFIX: wp_
     secrets:
       - db_password
-      - credentials
-    volumes:
-      - wordpress_data:/var/www/wordpress
-    networks:
-      - inception
-    expose:
-      - "9000"
+    restart: always
 
   nginx:
-    build: ./requirements/nginx
-    image: nginx
+    build:
+      context: requirements/nginx
+    image: nginx:inception
     container_name: nginx
-    restart: on-failure
     depends_on:
       - wordpress
-    env_file:
-      - .env
+    networks:
+      - inception-network
+    volumes:
+      - wordpress_data:/var/www/html
+    environment:
+      DOMAIN_NAME: ${DOMAIN_NAME}
     ports:
       - "443:443"
-    volumes:
-      - wordpress_data:/var/www/wordpress
-    networks:
-      - inception
+    restart: always
+
+networks:
+  inception-network:
+    driver: bridge
 
 volumes:
   mariadb_data:
@@ -59,7 +67,6 @@ volumes:
       type: none
       o: bind
       device: /home/zakburak/data/mariadb
-
   wordpress_data:
     driver: local
     driver_opts:
@@ -67,14 +74,8 @@ volumes:
       o: bind
       device: /home/zakburak/data/wordpress
 
-networks:
-  inception:
-    driver: bridge
-
 secrets:
   db_root_password:
     file: ../secrets/db_root_password.txt
   db_password:
     file: ../secrets/db_password.txt
-  credentials:
-    file: ../secrets/credentials.txt
