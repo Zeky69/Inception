@@ -6,10 +6,17 @@
 
 Inception is a system administration project that introduces the concept of containerization using Docker. The goal is to deploy a functional web infrastructure composed of multiple services running in isolated containers, orchestrated by Docker Compose.
 
-The stack consists of:
+The mandatory stack consists of:
 - **NGINX** — the only entrypoint, serving HTTPS on port 443 with TLSv1.2/1.3
 - **WordPress + php-fpm** — the CMS application server
 - **MariaDB** — the relational database
+
+Bonus services:
+- **Redis** — object cache for WordPress
+- **FTP (vsftpd)** — file access to the WordPress volume
+- **Static website** — portfolio served on port 80
+- **Adminer** — database management UI on port 8080
+- **Portainer** — Docker management UI on port 9000
 
 ### Design Choices
 
@@ -31,7 +38,7 @@ Docker containers share the host kernel but are isolated through Linux namespace
 | Git risk | Risk of committing `.env` with passwords | Files stored separately, easy to gitignore |
 | Best for | Non-sensitive config (domain, usernames) | Passwords, API keys, credentials |
 
-This project uses **environment variables** for non-sensitive data (domain name, DB name, WP title) and **Docker secrets** for all passwords.
+This project uses **environment variables** for non-sensitive data (domain name, DB name) and **Docker secrets** for all passwords.
 
 #### Docker Network vs Host Network
 | | Docker Bridge Network | Host Network |
@@ -40,7 +47,7 @@ This project uses **environment variables** for non-sensitive data (domain name,
 | Security | Services not reachable from outside unless explicitly published | All ports exposed on host |
 | DNS | Automatic service discovery by container name | No Docker DNS |
 
-This project uses a **custom bridge network** (`inception`) so containers can resolve each other by name (e.g., `mariadb`, `wordpress`) while remaining isolated from the host network.
+This project uses a **custom bridge network** (`inception-network`) so containers can resolve each other by name (e.g., `mariadb`, `wordpress`) while remaining isolated from the host network.
 
 #### Docker Volumes vs Bind Mounts
 | | Docker Volumes | Bind Mounts |
@@ -70,7 +77,8 @@ This project uses **named volumes with `driver: local` and `bind` options** — 
    ```bash
    echo "YourRootPass!" > secrets/db_root_password.txt
    echo "YourUserPass!" > secrets/db_password.txt
-   echo "YourAdminPass!" > secrets/credentials.txt
+   echo "YourFtpPass!"  > secrets/ftp_password.txt
+   chmod 600 secrets/*
    ```
 
 3. **Build and launch**:
@@ -78,20 +86,31 @@ This project uses **named volumes with `driver: local` and `bind` options** — 
    make
    ```
 
-4. **Access the site**: Open `https://zakburak.42.fr` in your browser (accept the self-signed certificate).
+4. **Access the site**: Open `https://zakburak.42.fr` in your browser (accept the self-signed certificate). Complete the WordPress installation wizard on first visit.
 
 ### Makefile Commands
 
 | Command | Description |
 |---|---|
-| `make` or `make up` | Build images and start all containers |
+| `make` | Build images and start all containers |
+| `make build` | Build Docker images only |
+| `make up` | Start containers (already built) |
 | `make down` | Stop and remove containers |
-| `make stop` / `make start` | Stop / start without removing |
 | `make logs` | Follow live container logs |
 | `make status` | Show container status |
 | `make clean` | Stop containers + prune Docker system |
 | `make fclean` | Full cleanup including data volumes |
 | `make re` | Full rebuild from scratch |
+
+### Access URLs
+
+| Service | URL |
+|---|---|
+| WordPress | `https://zakburak.42.fr` |
+| Static website | `http://zakburak.42.fr` |
+| Adminer | `http://zakburak.42.fr:8080` |
+| Portainer | `http://zakburak.42.fr:9000` |
+| FTP | `ftp://zakburak.42.fr` (user: `ftpuser`) |
 
 ## Resources
 
@@ -100,6 +119,18 @@ This project uses **named volumes with `driver: local` and `bind` options** — 
 - [Docker Compose reference](https://docs.docker.com/compose/compose-file/)
 - [NGINX docs](https://nginx.org/en/docs/)
 - [MariaDB docs](https://mariadb.com/kb/en/documentation/)
-- [WP-CLI docs](https://wp-cli.org/)
 - [php-fpm configuration](https://www.php.net/manual/en/install.fpm.configuration.php)
+- [vsftpd documentation](https://security.appspot.com/vsftpd.html)
+- [Redis documentation](https://redis.io/docs/)
+- [Adminer](https://www.adminer.org/)
+- [Portainer CE](https://docs.portainer.io/)
+- [Tutorial: Docker NGINX + WordPress + MariaDB (dev.to)](https://dev.to/alejiri/docker-nginx-wordpress-mariadb-tutorial-inception42-3po3)
 
+### AI Usage
+AI tools (Gemini/Antigravity) were used during this project as a pair-programming assistant for:
+- Debugging container startup issues (MariaDB socket path, sentinel file, PHP-FPM configuration)
+- Reviewing and fixing shell scripts (`init_db.sh`, `setup_wordpress.sh`, `generate_ssl.sh`)
+- Structuring the Docker Compose file and secrets management
+- Implementing bonus services (Redis cache, vsftpd, Adminer, Portainer)
+
+All generated code was reviewed, understood, and adapted to the project's specific constraints before being committed.
