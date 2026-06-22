@@ -8,6 +8,10 @@ if [ -n "$WORDPRESS_DB_PASSWORD_FILE" ] && [ -f "$WORDPRESS_DB_PASSWORD_FILE" ];
     export WORDPRESS_DB_PASSWORD
 fi
 
+if [ -n "$WP_CREDENTIALS_FILE" ] && [ -f "$WP_CREDENTIALS_FILE" ]; then
+    WP_ADMIN_PASSWORD=$(cat "$WP_CREDENTIALS_FILE")
+fi
+
 echo "Setting up WordPress..."
 
 if [ ! -f "$WP_PATH/wp-config.php" ]; then
@@ -54,6 +58,24 @@ EOF
     find "$WP_PATH" -type d -exec chmod 750 {} \;
     find "$WP_PATH" -type f -exec chmod 640 {} \;
     chown -R www-data:www-data "$WP_PATH"
+
+    echo "Downloading WP-CLI..."
+    wget -q https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -O /usr/local/bin/wp
+    chmod +x /usr/local/bin/wp
+
+    echo "Waiting for Database to be ready..."
+    until wp db check --allow-root --path=$WP_PATH > /dev/null 2>&1; do
+        sleep 2
+    done
+
+    echo "Installing WordPress..."
+    wp core install --url=${DOMAIN_NAME} --title="${WP_TITLE}" --admin_user=${WP_ADMIN_USER} --admin_password=${WP_ADMIN_PASSWORD} --admin_email=${WP_ADMIN_EMAIL} --allow-root --path=$WP_PATH
+
+    echo "Creating standard user..."
+    wp user create ${WP_USER} ${WP_USER_EMAIL} --role=author --user_pass=${WP_ADMIN_PASSWORD} --allow-root --path=$WP_PATH || true
+
+    echo "Enabling Redis cache..."
+    wp redis enable --allow-root --path=$WP_PATH
 
     echo "WordPress setup complete."
 else

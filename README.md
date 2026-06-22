@@ -78,6 +78,7 @@ This project uses **named volumes with `driver: local` and `bind` options** — 
    echo "YourRootPass!" > secrets/db_root_password.txt
    echo "YourUserPass!" > secrets/db_password.txt
    echo "YourFtpPass!"  > secrets/ftp_password.txt
+   echo "YourAdminPass!" > secrets/credentials.txt
    chmod 600 secrets/*
    ```
 

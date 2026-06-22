@@ -33,6 +33,7 @@ mkdir -p secrets
 echo "RootPasswordHere!" > secrets/db_root_password.txt
 echo "UserPasswordHere!" > secrets/db_password.txt
 echo "FtpPasswordHere!"  > secrets/ftp_password.txt
+echo "AdminPasswordHere!" > secrets/credentials.txt
 chmod 600 secrets/*
 ```
 
@@ -50,6 +51,11 @@ WORDPRESS_DB_NAME=wordpress
 WORDPRESS_DB_USER=wpuser
 WORDPRESS_DB_HOST=mariadb
 WORDPRESS_TABLE_PREFIX=wp_
+WP_TITLE=Inception
+WP_ADMIN_USER=superuser
+WP_ADMIN_EMAIL=superuser@example.com
+WP_USER=editor
+WP_USER_EMAIL=editor@example.com
 ```
 
 ### 5. Create the data directories (done automatically by `make`)
