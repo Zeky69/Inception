@@ -10,14 +10,19 @@ if [ -n "$MYSQL_PASSWORD_FILE" ] && [ -f "$MYSQL_PASSWORD_FILE" ]; then
     MYSQL_PASSWORD=$(cat "$MYSQL_PASSWORD_FILE")
 fi
 
-echo "Starting MariaDB initialization..."
+# Sentinel file : sa presence indique que l'initialisation est complete
+SENTINEL="/var/lib/mysql/.initialized"
 
-# Initialize MySQL data directory if it doesn't exist
-if [ ! -d "/var/lib/mysql/mysql" ]; then
-    echo "Initializing data directory..."
-    mysql_install_db --user=mysql --datadir=/var/lib/mysql > /dev/null
+if [ ! -f "$SENTINEL" ]; then
+    echo "Starting MariaDB initialization..."
 
-    # Start the server (no networking for setup)
+    # Initialize data directory only if system tables are missing
+    if [ ! -d "/var/lib/mysql/mysql" ]; then
+        echo "Initializing data directory..."
+        mysql_install_db --user=mysql --datadir=/var/lib/mysql > /dev/null
+    fi
+
+    # Start temporary server (no networking)
     echo "Starting temporary MariaDB server for setup..."
     mysqld --skip-networking --socket=/run/mysqld/mysqld.sock --user=mysql &
     pid="$!"
@@ -29,26 +34,26 @@ if [ ! -d "/var/lib/mysql/mysql" ]; then
     done
     echo "MariaDB is ready!"
 
-    # Run setup SQL: create database and users
+    # Run setup SQL
     echo "Running setup SQL..."
     mysql --socket=/run/mysqld/mysqld.sock -u root << EOF
 ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
-CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE};
+CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\`;
 CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
-GRANT ALL PRIVILEGES ON ${MYSQL_DATABASE}.* TO '${MYSQL_USER}'@'%';
+GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%';
 FLUSH PRIVILEGES;
 EOF
 
     # Shut down temporary server
     echo "Shutting down temporary MariaDB..."
     mysqladmin --socket=/run/mysqld/mysqld.sock -u root -p"${MYSQL_ROOT_PASSWORD}" shutdown
-
-    # Wait for shutdown
     wait "$pid" || true
 
+    # Mark initialization as complete
+    touch "$SENTINEL"
     echo "Initialization complete."
 else
-    echo "Data directory already exists. Skipping initialization."
+    echo "Already initialized (sentinel found). Skipping setup."
 fi
 
 # Start MariaDB normally (with networking)
