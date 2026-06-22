@@ -69,12 +69,13 @@ EOF
     done
 
     echo "Installing WordPress..."
-    wp core install --url=${DOMAIN_NAME} --title="${WP_TITLE}" --admin_user=${WP_ADMIN_USER} --admin_password=${WP_ADMIN_PASSWORD} --admin_email=${WP_ADMIN_EMAIL} --allow-root --path=$WP_PATH
+    wp core install --url=${DOMAIN_NAME} --title="${WP_TITLE}" --admin_user=${WP_ADMIN_USER} --admin_password=${WP_ADMIN_PASSWORD} --admin_email=${WP_ADMIN_EMAIL} --skip-email --allow-root --path=$WP_PATH
 
     echo "Creating standard user..."
     wp user create ${WP_USER} ${WP_USER_EMAIL} --role=author --user_pass=${WP_ADMIN_PASSWORD} --allow-root --path=$WP_PATH || true
 
     echo "Enabling Redis cache..."
+    wp plugin activate redis-cache --allow-root --path=$WP_PATH
     wp redis enable --allow-root --path=$WP_PATH
 
     echo "WordPress setup complete."
