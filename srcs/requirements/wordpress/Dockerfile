@@ -1,6 +1,5 @@
 FROM debian:bookworm
 
-# Install PHP-FPM and required extensions
 RUN apt-get update && apt-get install -y \
   php8.2-fpm \
   php8.2-mysql \
@@ -17,13 +16,10 @@ RUN apt-get update && apt-get install -y \
   && ln -s /usr/sbin/php-fpm8.2 /usr/local/bin/php-fpm \
   && rm -rf /var/lib/apt/lists/*
 
-# Create WordPress directory
 WORKDIR /var/www/html
 
-# Copy PHP-FPM configuration
 COPY conf/www.conf /etc/php/8.2/fpm/pool.d/
 
-# Copy and set permissions for setup script
 COPY tools/setup_wordpress.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/setup_wordpress.sh
 

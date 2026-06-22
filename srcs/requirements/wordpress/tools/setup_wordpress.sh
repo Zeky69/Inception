@@ -3,7 +3,6 @@ set -e
 
 WP_PATH="/var/www/html"
 
-# Read password from secret file
 if [ -n "$WORDPRESS_DB_PASSWORD_FILE" ] && [ -f "$WORDPRESS_DB_PASSWORD_FILE" ]; then
     WORDPRESS_DB_PASSWORD=$(cat "$WORDPRESS_DB_PASSWORD_FILE")
     export WORDPRESS_DB_PASSWORD
@@ -11,27 +10,22 @@ fi
 
 echo "Setting up WordPress..."
 
-# Download and configure WordPress if not present
 if [ ! -f "$WP_PATH/wp-config.php" ]; then
     echo "Downloading WordPress..."
     wget -q https://wordpress.org/latest.tar.gz -O /tmp/wordpress.tar.gz
     tar -xzf /tmp/wordpress.tar.gz -C /tmp
     rm /tmp/wordpress.tar.gz
 
-    # Copy only missing files (avoid overwriting existing content)
     cp -rn /tmp/wordpress/. "$WP_PATH/" || true
     rm -rf /tmp/wordpress
 
-    # Download Redis Object Cache plugin
     echo "Downloading Redis Object Cache plugin..."
     wget -q https://downloads.wordpress.org/plugin/redis-cache.latest-stable.zip -O /tmp/redis-cache.zip
     unzip -q /tmp/redis-cache.zip -d "$WP_PATH/wp-content/plugins/"
     rm /tmp/redis-cache.zip
 
-    # Fetch security salts from WordPress API
     WP_SALTS=$(wget -qO- https://api.wordpress.org/secret-key/1.1/salt/)
 
-    # Create wp-config.php
     cat > "$WP_PATH/wp-config.php" << EOF
 <?php
 define('DB_NAME', '${WORDPRESS_DB_NAME}');
@@ -41,7 +35,6 @@ define('DB_HOST', '${WORDPRESS_DB_HOST}');
 define('DB_CHARSET', 'utf8');
 define('DB_COLLATE', '');
 
-/* Redis Cache */
 define('WP_REDIS_HOST', 'redis');
 define('WP_REDIS_PORT', 6379);
 define('WP_CACHE', true);
@@ -58,7 +51,6 @@ if ( !defined('ABSPATH') )
 require_once ABSPATH . 'wp-settings.php';
 EOF
 
-    # Set secure permissions
     find "$WP_PATH" -type d -exec chmod 750 {} \;
     find "$WP_PATH" -type f -exec chmod 640 {} \;
     chown -R www-data:www-data "$WP_PATH"

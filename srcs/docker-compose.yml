@@ -1,6 +1,5 @@
 services:
 
-  # ─── MANDATORY ───────────────────────────────────────────────────
   mariadb:
     build:
       context: requirements/mariadb
@@ -59,7 +58,6 @@ services:
       - "443:443"
     restart: always
 
-  # ─── BONUS ───────────────────────────────────────────────────────
   redis:
     build:
       context: requirements/bonus/redis
@@ -125,12 +123,10 @@ services:
       - "9000:9000"
     restart: always
 
-# ─── NETWORKS ─────────────────────────────────────────────────────
 networks:
   inception-network:
     driver: bridge
 
-# ─── VOLUMES ──────────────────────────────────────────────────────
 volumes:
   mariadb_data:
     driver: local
@@ -147,7 +143,6 @@ volumes:
   portainer_data:
     driver: local
 
-# ─── SECRETS ──────────────────────────────────────────────────────
 secrets:
   db_root_password:
     file: ../secrets/db_root_password.txt
