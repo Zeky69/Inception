@@ -1,4 +1,6 @@
 services:
+
+  # ─── MANDATORY ───────────────────────────────────────────────────
   mariadb:
     build:
       context: requirements/mariadb
@@ -25,6 +27,7 @@ services:
     container_name: wordpress
     depends_on:
       - mariadb
+      - redis
     networks:
       - inception-network
     volumes:
@@ -56,10 +59,78 @@ services:
       - "443:443"
     restart: always
 
+  # ─── BONUS ───────────────────────────────────────────────────────
+  redis:
+    build:
+      context: requirements/bonus/redis
+    image: redis:inception
+    container_name: redis
+    networks:
+      - inception-network
+    restart: always
+
+  ftp:
+    build:
+      context: requirements/bonus/ftp
+    image: ftp:inception
+    container_name: ftp
+    depends_on:
+      - wordpress
+    networks:
+      - inception-network
+    volumes:
+      - wordpress_data:/var/www/html
+    environment:
+      FTP_PASSWORD_FILE: /run/secrets/ftp_password
+    secrets:
+      - ftp_password
+    ports:
+      - "21:21"
+      - "21000-21010:21000-21010"
+    restart: always
+
+  website:
+    build:
+      context: requirements/bonus/website
+    image: website:inception
+    container_name: website
+    networks:
+      - inception-network
+    ports:
+      - "80:80"
+    restart: always
+
+  adminer:
+    build:
+      context: requirements/bonus/adminer
+    image: adminer:inception
+    container_name: adminer
+    depends_on:
+      - mariadb
+    networks:
+      - inception-network
+    ports:
+      - "8080:8080"
+    restart: always
+
+  portainer:
+    build:
+      context: requirements/bonus/portainer
+    image: portainer:inception
+    container_name: portainer
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    ports:
+      - "9000:9000"
+    restart: always
+
+# ─── NETWORKS ─────────────────────────────────────────────────────
 networks:
   inception-network:
     driver: bridge
 
+# ─── VOLUMES ──────────────────────────────────────────────────────
 volumes:
   mariadb_data:
     driver: local
@@ -73,9 +144,14 @@ volumes:
       type: none
       o: bind
       device: /home/zakburak/data/wordpress
+  portainer_data:
+    driver: local
 
+# ─── SECRETS ──────────────────────────────────────────────────────
 secrets:
   db_root_password:
     file: ../secrets/db_root_password.txt
   db_password:
     file: ../secrets/db_password.txt
+  ftp_password:
+    file: ../secrets/ftp_password.txt

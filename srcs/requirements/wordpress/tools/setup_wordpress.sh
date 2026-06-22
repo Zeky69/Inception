@@ -22,6 +22,12 @@ if [ ! -f "$WP_PATH/wp-config.php" ]; then
     cp -rn /tmp/wordpress/. "$WP_PATH/" || true
     rm -rf /tmp/wordpress
 
+    # Download Redis Object Cache plugin
+    echo "Downloading Redis Object Cache plugin..."
+    wget -q https://downloads.wordpress.org/plugin/redis-cache.latest-stable.zip -O /tmp/redis-cache.zip
+    unzip -q /tmp/redis-cache.zip -d "$WP_PATH/wp-content/plugins/"
+    rm /tmp/redis-cache.zip
+
     # Fetch security salts from WordPress API
     WP_SALTS=$(wget -qO- https://api.wordpress.org/secret-key/1.1/salt/)
 
@@ -34,6 +40,11 @@ define('DB_PASSWORD', '${WORDPRESS_DB_PASSWORD}');
 define('DB_HOST', '${WORDPRESS_DB_HOST}');
 define('DB_CHARSET', 'utf8');
 define('DB_COLLATE', '');
+
+/* Redis Cache */
+define('WP_REDIS_HOST', 'redis');
+define('WP_REDIS_PORT', 6379);
+define('WP_CACHE', true);
 
 \$table_prefix = '${WORDPRESS_TABLE_PREFIX:-wp_}';
 
