@@ -26,22 +26,33 @@ echo "127.0.0.1 zakburak.42.fr" | sudo tee -a /etc/hosts
 
 ### 3. Create the secret files
 
-The `secrets/` directory must contain three files with plaintext passwords:
+The `secrets/` directory must contain five files with plaintext passwords:
 
 ```bash
 mkdir -p secrets
-echo "RootPasswordHere!" > secrets/db_root_password.txt
-echo "UserPasswordHere!" > secrets/db_password.txt
-echo "FtpPasswordHere!"  > secrets/ftp_password.txt
-echo "AdminPasswordHere!" > secrets/credentials.txt
+echo "RootPasswordHere!"    > secrets/db_root_password.txt
+echo "UserPasswordHere!"    > secrets/db_password.txt
+echo "FtpPasswordHere!"     > secrets/ftp_password.txt
+echo "AdminPasswordHere!"   > secrets/credentials.txt
+echo "WpUserPasswordHere!"  > secrets/wp_user_password.txt
 chmod 600 secrets/*
 ```
+
+| File | Used by | Purpose |
+|------|---------|---------|
+| `db_root_password.txt` | mariadb | MariaDB root password |
+| `db_password.txt` | mariadb, wordpress | WordPress DB user password |
+| `ftp_password.txt` | ftp | `ftpuser` FTP password |
+| `credentials.txt` | wordpress | WordPress **admin** password |
+| `wp_user_password.txt` | wordpress | WordPress **second user** (editor/author) password |
 
 > ⚠️ `secrets/` is in `.gitignore`. Never commit these files.
 
 ### 4. Review the environment file
 
-`srcs/.env` contains non-sensitive variables used by Docker Compose and the containers:
+`srcs/.env` is **not committed** (it is gitignored). A template `srcs/.env.example` is
+provided instead — running `make` copies it to `srcs/.env` automatically if it is missing.
+It contains only non-sensitive variables used by Docker Compose and the containers:
 
 ```env
 DOMAIN_NAME=zakburak.42.fr
@@ -146,7 +157,8 @@ Inception/
 ├── DEV_DOC.md                       # This file
 ├── secrets/                         # Plaintext secrets (gitignored)
 └── srcs/
-    ├── .env                         # Non-sensitive environment variables
+    ├── .env.example                 # Template (committed); copied to .env by `make`
+    ├── .env                         # Non-sensitive env vars (gitignored, auto-generated)
     ├── docker-compose.yml           # Service orchestration
     └── requirements/
         ├── mariadb/                 # MariaDB container

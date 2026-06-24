@@ -1,3 +1,4 @@
 .claude/
 *.pdf
-secrets/
+secrets/*
+srcs/.env

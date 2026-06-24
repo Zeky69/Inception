@@ -71,6 +71,7 @@ All passwords are provided via Docker Secrets in the `secrets/` directory:
 | `secrets/db_password.txt` | MariaDB WordPress user password |
 | `secrets/ftp_password.txt` | FTP user (`ftpuser`) password |
 | `secrets/credentials.txt` | WordPress admin password |
+| `secrets/wp_user_password.txt` | WordPress second user (editor) password |
 
 > ⚠️ The `secrets/` directory is listed in `.gitignore` and must **never** be committed to Git.
 

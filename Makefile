@@ -5,8 +5,11 @@ DATA_DIR = /home/zakburak/data
 
 all: build up
 
-build: $(DATA_DIR)/mariadb $(DATA_DIR)/wordpress
+build: srcs/.env $(DATA_DIR)/mariadb $(DATA_DIR)/wordpress
 	docker compose -f $(COMPOSE_FILE) build
+
+srcs/.env:
+	cp srcs/.env.example srcs/.env
 
 $(DATA_DIR)/mariadb:
 	mkdir -p $(DATA_DIR)/mariadb
